@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Lookify | Завантаження{% endblock %}
+
+{% block content %}
+<section class="text-center py-16 px-4">
+    <h1 class="text-5xl font-extrabold text-textlight leading-tight mb-4 tracking-tight">
+        Приміряй речі за <span class="text-primary">10 секунд</span>
+    </h1>
+    <p class="text-lg text-gray-400 mb-8 max-w-2xl mx-auto">
+        Завантажте фото і приміряйте речі за допомогою штучного інтелекту.
+        <span class="block mt-2 text-sm text-gray-500 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-1 text-green-400">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.57-.423 3.073-1.115 4.33A12.022 12.022 0 0112 21.75c-2.51 0-4.847-.655-6.875-1.76-.264-.15-.59-.1-.74.161-.309.55-.262 1.256.095 1.745C4.249 21.75 4.801 22.5 6 22.5h12c1.472 0 2.802-.601 3.792-1.576.256-.255.385-.595.385-.935V12h-.001z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l-3.75 3.75L9 10.5m-1.5 4.5l-3.75 3.75h15L18 15m-1.5-6L12 5.25 7.5 9" />
+            </svg>
+            Ваші фото не публікуються.
+        </span>
+    </p>
+
+    <form method="post" enctype="multipart/form-data" class="space-y-8 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-8 max-w-4xl mx-auto">
+        {% csrf_token %}
+        <!-- User Photo Dropzone -->
+        <div class="form-group bg-white/5 p-6 rounded-2xl shadow-soft border border-gray-700 hover:border-primary transition-all duration-300 backdrop-blur-md">
+            <label for="id_user_photo" class="block text-textlight text-xl font-semibold mb-4 cursor-pointer flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 mr-3 text-secondary">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                </svg>
+                Фото користувача
+            </label>
+            <div class="border-2 border-dashed border-gray-600 rounded-xl p-6 mb-4 flex flex-col items-center justify-center text-center h-48 relative overflow-hidden group">
+                <input type="file" name="user_photo" id="id_user_photo" accept="image/jpeg,image/png,image/webp" class="absolute inset-0 opacity-0 cursor-pointer" aria-describedby="user_photo_helptext user_photo_errors">
+                <img id="user-photo-preview" class="max-h-full max-w-full object-contain rounded-lg" src="#" alt="Прев'ю фото користувача" style="display: none;">
+                <div id="user-photo-placeholder" class="text-gray-500 group-hover:text-primary transition-colors duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 mx-auto mb-2 text-gray-500 group-hover:text-primary transition-colors duration-300">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                    </svg>
+                    <p class="font-medium">Перетягніть файл сюди або <span class="text-primary font-semibold">натисніть, щоб вибрати</span></p>
+                    <p class="text-sm text-gray-500 mt-1">JPG, PNG, WEBP до 10MB</p>
+                </div>
+            </div>
+            {% if form.user_photo.help_text %}
+                <p id="user_photo_helptext" class="helptext text-sm text-gray-500 mt-2">{{ form.user_photo.help_text }}</p>
+            {% endif %}
+            {% if form.user_photo.errors %}
+                <ul id="user_photo_errors" class="errorlist text-red-400 text-sm mt-2 list-none p-0">
+                    {% for error in form.user_photo.errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <!-- Item Photo Dropzone -->
+        <div class="form-group bg-white/5 p-6 rounded-2xl shadow-soft border border-gray-700 hover:border-primary transition-all duration-300 backdrop-blur-md">
+            <label for="id_item_photo" class="block text-textlight text-xl font-semibold mb-4 cursor-pointer flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 mr-3 text-secondary">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.035-.259a3.375 3.375 0 002.456-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM15.75 12V4.5" />
+                </svg>
+                Фото речі
+            </label>
+            <div class="border-2 border-dashed border-gray-600 rounded-xl p-6 mb-4 flex flex-col items-center justify-center text-center h-48 relative overflow-hidden group">
+                <input type="file" name="item_photo" id="id_item_photo" accept="image/jpeg,image/png,image/webp" multiple class="absolute inset-0 opacity-0 cursor-pointer" aria-describedby="item_photo_helptext item_photo_errors">
+                <img id="item-photo-preview" class="max-h-full max-w-full object-contain rounded-lg" src="#" alt="Прев'ю фото речі" style="display: none;">
+                <div id="item-photo-placeholder" class="text-gray-500 group-hover:text-primary transition-colors duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 mx-auto mb-2 text-gray-500 group-hover:text-primary transition-colors duration-300">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                    </svg>
+                    <p class="font-medium">Перетягніть файл сюди або <span class="text-primary font-semibold">натисніть, щоб вибрати</span></p>
+                    <p class="text-sm text-gray-500 mt-1">До 3 фото (JPG, PNG, WEBP до 10MB)</p>
+                </div>
+            </div>
+            {% if form.item_photo.help_text %}
+                <p id="item_photo_helptext" class="helptext text-sm text-gray-500 mt-2">{{ form.item_photo.help_text }}</p>
+            {% endif %}
+            {% if form.item_photo.errors %}
+                <ul id="item_photo_errors" class="errorlist text-red-400 text-sm mt-2 list-none p-0">
+                    {% for error in form.item_photo.errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <!-- Alerts Placeholder -->
+        <div id="alerts-container" class="lg:col-span-2 space-y-3">
+            <!-- Alerts will be dynamically added here -->
+        </div>
+
+        <!-- Tips Block -->
+        <div class="lg:col-span-2 bg-white/5 p-6 rounded-2xl shadow-soft backdrop-blur-md border border-gray-700 mt-8 text-left">
+            <h3 class="text-xl font-semibold text-textlight mb-3 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 mr-2 text-secondary">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712L12 15l-2.121-2.121c-1.172-1.025-1.172-2.687 0-3.712z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M22 10.5h-6m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM10.5 18H3" />
+                </svg>
+                Поради для кращого результату
+            </h3>
+            <ul class="list-disc list-inside text-gray-400 space-y-1 text-sm">
+                <li>Світле рівномірне освітлення</li>
+                <li>Фронтальний ракурс</li>
+                <li>Високий контраст предмета</li>
+            </ul>
+        </div>
+
+        <!-- CTA Button -->
+        <div class="lg:col-span-2 flex justify-center mt-8">
+            <button type="submit" id="submit-button" class="px-8 py-4 bg-gradient-to-r from-primary to-secondary text-white font-bold rounded-xl shadow-lg hover:shadow-neon-primary transition-all duration-300 text-xl disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                Приміряти
+            </button>
+        </div>
+    </form>
+</section>
+
+<script>
+    const userPhotoInput = document.getElementById('id_user_photo');
+    const userPhotoPreview = document.getElementById('user-photo-preview');
+    const userPhotoPlaceholder = document.getElementById('user-photo-placeholder');
+
+    const itemPhotoInput = document.getElementById('id_item_photo');
+    const itemPhotoPreview = document.getElementById('item-photo-preview');
+    const itemPhotoPlaceholder = document.getElementById('item-photo-placeholder');
+
+    const submitButton = document.getElementById('submit-button');
+
+    function updateButtonState() {
+        const userPhotoSelected = userPhotoInput.files.length > 0;
+        const itemPhotoSelected = itemPhotoInput.files.length > 0;
+        submitButton.disabled = !(userPhotoSelected && itemPhotoSelected);
+    }
+
+    function handleFileSelect(input, preview, placeholder) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                placeholder.style.display = 'none';
+            };
+            reader.readAsDataURL(input.files[0]);
+        } else {
+            preview.src = '#';
+            preview.style.display = 'none';
+            placeholder.style.display = 'flex'; // Display placeholder again
+        }
+        updateButtonState();
+    }
+
+    userPhotoInput.addEventListener('change', () => handleFileSelect(userPhotoInput, userPhotoPreview, userPhotoPlaceholder));
+    itemPhotoInput.addEventListener('change', () => {
+        if (itemPhotoInput.files.length > 0) {
+            // Display the first selected item image as a preview
+            handleFileSelect(itemPhotoInput, itemPhotoPreview, itemPhotoPlaceholder);
+        } else {
+            itemPhotoPreview.src = '#';
+            itemPhotoPreview.style.display = 'none';
+            itemPhotoPlaceholder.style.display = 'flex';
+        }
+        updateButtonState();
+    });
+
+    // Initial button state check
+    updateButtonState();
+
+    // Handle drag and drop for user photo
+    const userPhotoDropzone = userPhotoInput.parentElement;
+    userPhotoDropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        userPhotoDropzone.classList.add('border-primary', 'shadow-neon-primary');
+    });
+    userPhotoDropzone.addEventListener('dragleave', () => {
+        userPhotoDropzone.classList.remove('border-primary', 'shadow-neon-primary');
+    });
+    userPhotoDropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        userPhotoDropzone.classList.remove('border-primary', 'shadow-neon-primary');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            userPhotoInput.files = files;
+            userPhotoInput.dispatchEvent(new Event('change'));
+        }
+    });
+
+    // Handle drag and drop for item photo
+    const itemPhotoDropzone = itemPhotoInput.parentElement;
+    itemPhotoDropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        itemPhotoDropzone.classList.add('border-primary', 'shadow-neon-primary');
+    });
+    itemPhotoDropzone.addEventListener('dragleave', () => {
+        itemPhotoDropzone.classList.remove('border-primary', 'shadow-neon-primary');
+    });
+    itemPhotoDropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        itemPhotoDropzone.classList.remove('border-primary', 'shadow-neon-primary');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            itemPhotoInput.files = files;
+            itemPhotoInput.dispatchEvent(new Event('change'));
+        }
+    });
+
+</script>
+{% endblock %}

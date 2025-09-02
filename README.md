@@ -51,7 +51,7 @@ Lookify is a Django-based web application that enables users to virtually try on
    ```env
    GOOGLE_API_KEY=your_gemini_api_key_here
    USE_GEMINI=True
-   GEMINI_MODEL=gemini-1.5-flash
+   GEMINI_MODEL=gemini-2.5-flash-image-preview
    REQUEST_TIMEOUT=300
    ```
 

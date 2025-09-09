@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # Create your views here.
 
 def home(request):
-    return redirect('upload_view')
+    return render(request, 'home.html')
 
 def upload_view(request):
     if request.method == 'POST':
@@ -229,3 +229,164 @@ def result_view(request):
         'result_urls': result_urls, # Передаємо список URL-адрес
     }
     return render(request, 'result.html', context)
+
+# =========================
+# Hair try-on flow
+# =========================
+
+def hair_upload_view(request):
+    if request.method == 'POST':
+        logger.info(f"Hair Upload - FILES keys: {list(request.FILES.keys())}")
+        form = UploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            user_photo_path = form.cleaned_data['user_photo']
+
+            item_photos = request.FILES.getlist('item_photo')
+            processed_item_paths = []
+            for i, item_photo in enumerate(item_photos):
+                try:
+                    result_path = form._validate_and_process_image(item_photo, f"hair_photo_{i}", 128, 128)
+                    if result_path:
+                        processed_item_paths.append(result_path)
+                except Exception as e:
+                    logger.error(f"Error processing hair photo {i+1}: {e}")
+
+            user_path = user_photo_path if isinstance(user_photo_path, str) else (str(user_photo_path) if user_photo_path else None)
+
+            request.session['hair_upload'] = {
+                'user': user_path,
+                'items': processed_item_paths,
+                'prompt': form.cleaned_data['prompt_text']
+            }
+            return redirect('hair_preview_view')
+    else:
+        form = UploadForm()
+    return render(request, 'hair_upload.html', {'form': form})
+
+
+def hair_preview_view(request):
+    if 'hair_upload' not in request.session:
+        messages.error(request, "Спершу завантажте фото.")
+        return redirect('hair_upload_view')
+
+    uploaded_data = request.session['hair_upload']
+    user_photo_url = os.path.join(settings.MEDIA_URL, uploaded_data['user'])
+    item_photo_paths = uploaded_data['items']
+    item_photo_urls = [os.path.join(settings.MEDIA_URL, path) for path in item_photo_paths]
+
+    context = {
+        'user_photo_url': user_photo_url,
+        'item_photo_urls': item_photo_urls,
+    }
+    return render(request, 'hair_preview.html', context)
+
+
+def build_hair_prompt(user_prompt=None, additional_prompt=None):
+    base = (
+    "[TASK]\n"
+    "Perform high-quality image editing: apply the HAIRSTYLE from the provided hairstyle image(s) onto the PERSON image as a natural, photorealistic hair try-on.\n\n"
+
+    "[ASSETS]\n"
+    "- PERSON: strictly preserve face identity, proportions, skin tone, lighting, and original background.\n"
+    "- HAIRSTYLE: replicate exactly the length, texture, curl pattern, density, color, highlights, and hairline.\n\n"
+
+    "[PLACEMENT]\n"
+    "Precisely align the HAIRSTYLE to the PERSON’s head. Adjust scale, rotation, and perspective. Ensure seamless integration around forehead, temples, and ears. Respect occlusions (e.g., earrings, glasses, hats).\n\n"
+
+    "[BLENDING]\n"
+    "Smoothly merge hair edges with scalp. Preserve natural transparency in flyaway hairs. Match global and local lighting conditions, shadows, and reflections. Avoid hard edges or cutout look.\n\n"
+
+    "[CONSTRAINTS]\n"
+    "Do not modify the PERSON’s facial identity, head shape, skin, or background. Do not alter hairstyle identity unless explicitly requested (no recoloring, redesigning, or shortening/lengthening).\n\n"
+
+    "[STYLE]\n"
+    "Ultra-photorealistic output. Maintain natural texture, volume, depth, and strand-level detail. Ensure hair looks realistic under the given lighting.\n\n"
+
+    "[OUTPUT]\n"
+    "Return a single, final edited image with the chosen HAIRSTYLE naturally and convincingly fitted onto the PERSON.\n\n"
+
+    "[NEGATIVE]\n"
+    "No cartoonish style, no artificial glow, no extra accessories, no distortions, no unrealistic blending or duplicated strands.\n"
+    )
+    
+    if user_prompt:
+        base += f"\n[USER]\n{user_prompt}\n"
+    if additional_prompt:
+        base += f"\n[USER-SPECIFIC]\n{additional_prompt}\n"
+    return base
+
+
+def hair_process_view(request):
+    if request.method == 'POST':
+        form = ProcessForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, "Невалідні дані форми.")
+            return redirect('hair_upload_view')
+
+        if 'hair_upload' not in request.session:
+            messages.error(request, "Будь ласка, завантажте фото для обробки.")
+            return redirect('hair_upload_view')
+
+        uploaded_data = request.session['hair_upload']
+        user_img_path = uploaded_data['user']
+        item_img_paths = uploaded_data['items']
+
+        user_prompt = uploaded_data.get('prompt', '')
+        additional_prompt = form.cleaned_data.get('additional_prompt', '')
+
+        # Для зачісок не використовуємо маску за замовчуванням
+        prompt = build_hair_prompt(user_prompt, additional_prompt)
+
+        # Об'єднуємо фото зачісок в одну сітку (для вибору найкращої)
+        try:
+            combined_items_path = combine_item_images(item_img_paths)
+        except Exception as e:
+            logger.error(f"Failed to combine hairstyle images: {e}", exc_info=True)
+            messages.error(request, "Не вдалося обробити фото зачісок. Спробуйте ще раз.")
+            return redirect('hair_upload_view')
+
+        all_result_paths = []
+
+        if settings.USE_GEMINI:
+            gemini_client = GeminiClient()
+            try:
+                result_path = gemini_client.try_on_item(user_img_path, combined_items_path, prompt, None)
+                all_result_paths = [result_path]
+                messages.success(request, "Зображення успішно оброблено за допомогою Gemini!")
+            except Exception as e:
+                logger.warning(f"Error calling Gemini API for hair ({e}). Using placeholder.", exc_info=True)
+                messages.warning(request, f"Помилка AI-обробки: {e}. Показуємо тимчасовий прев'ю.")
+                try:
+                    result_path = build_preview_placeholder(user_img_path, combined_items_path, additional_prompt)
+                    if result_path:
+                        all_result_paths = [result_path]
+                except Exception as placeholder_e:
+                    logger.error(f"Failed to create hair placeholder: {placeholder_e}", exc_info=True)
+        else:
+            messages.info(request, "AI відключено. Показуємо тимчасовий прев'ю.")
+            try:
+                result_path = build_preview_placeholder(user_img_path, combined_items_path, additional_prompt)
+                if result_path:
+                    all_result_paths = [result_path]
+            except Exception as placeholder_e:
+                logger.error(f"Failed to create hair placeholder: {placeholder_e}", exc_info=True)
+
+        if all_result_paths:
+            request.session['hair_results'] = all_result_paths
+            return redirect('hair_result_view')
+        else:
+            messages.error(request, "Не вдалося згенерувати результат.")
+            return redirect('hair_upload_view')
+
+
+def hair_result_view(request):
+    if 'hair_results' not in request.session:
+        messages.error(request, "Результати не знайдені. Почніть спочатку.")
+        return redirect('hair_upload_view')
+
+    result_paths = request.session['hair_results']
+    result_urls = [os.path.join(settings.MEDIA_URL, path) for path in result_paths]
+    context = {
+        'result_urls': result_urls,
+    }
+    return render(request, 'hair_result.html', context)

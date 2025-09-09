@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Lookify | Зачіска · Результат{% endblock %}
+
+{% block content %}
+<section class="py-10 px-4 text-center">
+    <h1 class="text-4xl font-bold text-textlight mb-8">Ваш результат</h1>
+
+    {% if result_urls %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            {% for url in result_urls %}
+                <div class="bg-white/5 p-4 rounded-2xl border border-gray-700">
+                    <img src="{{ url }}" alt="Результат {{ forloop.counter }}" class="w-full h-auto rounded-xl border border-gray-600"/>
+                </div>
+            {% endfor %}
+        </div>
+        <div class="mt-10 flex justify-center gap-4">
+            <a href="{% url 'hair_upload_view' %}" class="px-6 py-3 border border-gray-600 rounded-xl text-textlight hover:border-primary hover:text-primary transition-all duration-300">Спробувати ще</a>
+            <a href="{% url 'home' %}" class="px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white font-bold rounded-xl shadow-lg hover:shadow-neon-secondary transition-all duration-300">На головну</a>
+        </div>
+    {% else %}
+        <p class="text-gray-400">Результат відсутній.</p>
+    {% endif %}
+</section>
+{% endblock %}
+
+

@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Lookify | Головна{% endblock %}
+
+{% block content %}
+<section class="py-16 px-4 text-center">
+    <h1 class="text-5xl font-extrabold text-textlight leading-tight mb-4 tracking-tight">Виберіть режим примірки</h1>
+    <p class="text-lg text-gray-400 mb-12 max-w-2xl mx-auto">Завантажте своє фото й спробуйте нові образи за допомогою ШІ.</p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <a href="{% url 'upload_view' %}" class="block bg-white/5 rounded-2xl border border-gray-700 hover:border-primary hover:shadow-neon-primary transition-all duration-300 p-8 text-left">
+            <div class="flex items-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 text-secondary mr-3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5V6a2.25 2.25 0 00-2.25-2.25h-13.5A2.25 2.25 0 003 6v1.5M21 7.5A2.25 2.25 0 0118.75 9.75H5.25A2.25 2.25 0 013 7.5m18 0V18a2.25 2.25 0 01-2.25 2.25h-13.5A2.25 2.25 0 013 18V7.5" />
+                </svg>
+                <h2 class="text-2xl font-semibold text-textlight">Примірка одягу</h2>
+            </div>
+            <p class="text-gray-400">Завантажте фото та до 3 фото речей. Отримайте реалістичний результат.</p>
+        </a>
+
+        <a href="{% url 'hair_upload_view' %}" class="block bg-white/5 rounded-2xl border border-gray-700 hover:border-primary hover:shadow-neon-secondary transition-all duration-300 p-8 text-left">
+            <div class="flex items-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 text-secondary mr-3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75c-2.485 0-4.5 2.015-4.5 4.5v.75a3.75 3.75 0 107.5 0v-.75c0-2.485-2.015-4.5-4.5-4.5z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 11.25c0-2.9 2.35-5.25 5.25-5.25 3.175 0 5.25 2.45 5.25 5.625 0 3.375-2.25 6.375-6.75 8.625" />
+                </svg>
+                <h2 class="text-2xl font-semibold text-textlight">Примірка зачіски</h2>
+            </div>
+            <p class="text-gray-400">Завантажте своє фото та фото зачісок. Спробуйте новий стиль.</p>
+        </a>
+    </div>
+</section>
+{% endblock %}
+
+

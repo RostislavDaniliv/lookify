@@ -56,13 +56,13 @@
     <meta property="og:title" content="Lookify">
     <meta property="og:description" content="Приміряй речі за 10 секунд з Lookify">
     <meta property="og:image" content="/static/og-image.jpg">
-    <meta property="og:url" content="{% url 'upload_view' %}">
+    <meta property="og:url" content="{% url 'home' %}">
 </head>
 <body class="min-h-screen flex flex-col">
     <!-- Sticky Header -->
     <header class="sticky top-0 z-50 bg-background bg-opacity-90 backdrop-blur-sm p-4 border-b border-gray-700">
         <div class="max-w-5xl mx-auto flex justify-between items-center">
-            <a href="{% url 'upload_view' %}" class="text-2xl font-bold text-textlight tracking-tight">Lookify</a>
+            <a href="{% url 'home' %}" class="text-2xl font-bold text-textlight tracking-tight">Lookify</a>
             <nav>
                 <a href="#" class="text-textlight hover:text-primary transition-colors duration-300 mx-3">Про Lookify</a>
                 <a href="#" class="text-textlight hover:text-primary transition-colors duration-300 mx-3">Підтримка</a>

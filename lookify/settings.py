@@ -145,6 +145,15 @@ GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash-image-preview')
 REQUEST_TIMEOUT = int(os.getenv('REQUEST_TIMEOUT', 30))
 USE_GEMINI = os.getenv('USE_GEMINI', 'false').lower() == 'true' # Add USE_GEMINI flag
 
+# CSRF Configuration
+CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
+CSRF_COOKIE_HTTPONLY = False
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    # Add your production domain here
+]
+
 # Logging configuration
 LOGGING = {
     'version': 1,

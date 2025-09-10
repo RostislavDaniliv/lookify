@@ -5,6 +5,10 @@ import uuid
 from datetime import date
 from django.conf import settings
 import logging
+import pillow_heif
+
+# Реєструємо HEIF/HEIC підтримку
+pillow_heif.register_heif_opener()
 
 # Logger settings
 logger = logging.getLogger(__name__)

@@ -6,8 +6,12 @@ import os
 import uuid
 from datetime import date
 import logging
+import pillow_heif
 
 logger = logging.getLogger(__name__)
+
+# Реєструємо HEIF/HEIC підтримку
+pillow_heif.register_heif_opener()
 
 class MultipleFileInput(forms.FileInput):
     def __init__(self, attrs=None):
@@ -93,9 +97,9 @@ class MultipleImageField(forms.FileField):
 
 class UploadForm(forms.Form):
     user_photo = forms.ImageField(required=True, label="User Photo",
-                                  help_text="JPEG, PNG, WebP or AVIF. Max. 8MB. Min. resolution 256x256.")
+                                  help_text="JPEG, PNG, WebP, AVIF or HEIC. Max. 8MB. Min. resolution 256x256.")
     item_photo = MultipleImageField(required=True, label="Item Photos (up to 3)",
-                                  help_text="JPEG, PNG, WebP or AVIF. Max. 8MB each. Min. resolution 128x128.",
+                                  help_text="JPEG, PNG, WebP, AVIF or HEIC. Max. 8MB each. Min. resolution 128x128.",
                                   max_files=3)
     prompt_text = forms.CharField(required=False, label="Additional Requests (optional)",
                                   help_text="Describe what you would like to try on, or any other details.",
@@ -149,7 +153,7 @@ class UploadForm(forms.Form):
 
     def _validate_and_process_image(self, file, field_name, min_width, min_height):
         max_size = 8 * 1024 * 1024  # 8 MB
-        allowed_mime_types = ['image/jpeg', 'image/png', 'image/webp', 'image/avif']
+        allowed_mime_types = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/heic', 'image/heif']
 
         logger.info(f"Validating image: {file.name}, size: {file.size}, type: {file.content_type}")
 
@@ -158,7 +162,7 @@ class UploadForm(forms.Form):
             return None
 
         if file.content_type not in allowed_mime_types:
-            self.add_error(field_name, "Unsupported file format. Allowed: JPEG, PNG, WebP, AVIF.")
+            self.add_error(field_name, "Unsupported file format. Allowed: JPEG, PNG, WebP, AVIF, HEIC.")
             return None # No sense in processing further if format is incorrect
 
         try:
@@ -192,12 +196,13 @@ class UploadForm(forms.Form):
             # This happens if the image has no EXIF data or orientation.
             pass
 
-        # Downscale if longer side > 3000px
-        max_dimension = 3000
+        # Downscale if longer side > 3000px (для HEIC файлів використовуємо менший ліміт)
+        max_dimension = 2500 if file.content_type in ['image/heic', 'image/heif'] else 3000
         if max(img.size) > max_dimension:
             ratio = max_dimension / max(img.size)
             new_size = tuple(int(x * ratio) for x in img.size)
             img = img.resize(new_size, Image.Resampling.LANCZOS)
+            logger.info(f"Resized {file.content_type} image from {img.size} to {new_size}")
 
         # Remove EXIF/metadata before saving
         img.info = {}
@@ -212,23 +217,33 @@ class UploadForm(forms.Form):
         upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads', str(today.year), str(today.month))
         os.makedirs(upload_dir, exist_ok=True)
 
-        ext = 'jpeg'
-        if content_type == 'image/png':
-            ext = 'png'
-        elif content_type == 'image/webp':
-            ext = 'webp'
-        elif content_type == 'image/avif':
-            ext = 'avif'
-        
-        # Preserve alpha for PNG/WebP/AVIF
-        if (ext == 'png' or ext == 'webp' or ext == 'avif') and img.mode != 'RGBA':
-            img = img.convert('RGBA')
+        # HEIC/HEIF файли завжди конвертуємо в JPEG для кращої сумісності
+        if content_type in ['image/heic', 'image/heif']:
+            ext = 'jpeg'
+            # Конвертуємо в RGB для JPEG
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+        else:
+            ext = 'jpeg'
+            if content_type == 'image/png':
+                ext = 'png'
+            elif content_type == 'image/webp':
+                ext = 'webp'
+            elif content_type == 'image/avif':
+                ext = 'avif'
+            
+            # Preserve alpha for PNG/WebP/AVIF
+            if (ext == 'png' or ext == 'webp' or ext == 'avif') and img.mode != 'RGBA':
+                img = img.convert('RGBA')
 
         file_name = f"{uuid.uuid4()}.{ext}"
         full_path = os.path.join(upload_dir, file_name)
 
+        # Зберігаємо з оптимізацією якості
         if ext == 'jpeg':
-            img.save(full_path, format='JPEG', quality=90)
+            # Для HEIC файлів використовуємо трохи нижчу якість для зменшення розміру
+            quality = 85 if content_type in ['image/heic', 'image/heif'] else 90
+            img.save(full_path, format='JPEG', quality=quality, optimize=True)
         elif ext == 'avif':
             img.save(full_path, format='AVIF', quality=90)
         else:

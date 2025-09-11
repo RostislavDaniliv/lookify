@@ -131,18 +131,30 @@
     }
 
     function handleFileSelect(input, preview, placeholder) {
-        if (input.files && input.files[0]) {
+        const file = input.files && input.files[0] ? input.files[0] : null;
+        if (!file) {
+            preview.src = '#';
+            preview.style.display = 'none';
+            placeholder.style.display = 'flex';
+            updateButtonState();
+            return;
+        }
+        const type = (file.type || '').toLowerCase();
+        const canPreview = ['image/png','image/jpeg','image/webp'].includes(type);
+
+        if (canPreview) {
             const reader = new FileReader();
             reader.onload = function(e) {
                 preview.src = e.target.result;
                 preview.style.display = 'block';
                 placeholder.style.display = 'none';
             };
-            reader.readAsDataURL(input.files[0]);
+            reader.readAsDataURL(file);
         } else {
-            preview.src = '#';
+            // HEIC/HEIF та інші непідтримувані браузером для прев'ю
             preview.style.display = 'none';
-            placeholder.style.display = 'flex'; // Display placeholder again
+            placeholder.style.display = 'flex';
+            placeholder.innerHTML = `<div class="text-gray-500"><p class="font-medium">Файл обрано: <span class="text-primary">${file.name}</span></p><p class="text-sm">Прев’ю недоступне, але файл буде оброблено на сервері.</p></div>`;
         }
         updateButtonState();
     }

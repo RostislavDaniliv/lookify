@@ -8,6 +8,12 @@ try:
 except Exception:  # optional
     magic_lib = None
 
+# Optional HEIC fallback via pyheif
+try:
+    import pyheif  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    pyheif = None
+
 
 def normalize_to_webp(uploaded_file, max_px=2048, quality=82):
     logger = logging.getLogger('fitting.image_processing')
@@ -49,9 +55,28 @@ def normalize_to_webp(uploaded_file, max_px=2048, quality=82):
                     "raw",
                 )
                 logger.info(f"normalize_to_webp: opened via pillow_heif/read_heif size={image.size} mode={image.mode}")
-            except Exception:
-                logger.exception("normalize_to_webp: failed to open image via PIL and pillow_heif fallbacks")
-                raise
+            except Exception as e_pillow_heif_read:
+                logger.warning(f"normalize_to_webp: pillow_heif/read_heif failed: {e_pillow_heif_read}")
+                # Final fallback via pyheif, which sometimes handles tricky HEICs
+                if pyheif is not None:
+                    try:
+                        heif = pyheif.read_heif(file_bytes)
+                        # Some HEICs may contain auxiliary images; pyheif returns primary frame
+                        image = Image.frombytes(
+                            heif.mode,
+                            heif.size,
+                            heif.data,
+                            "raw",
+                            heif.mode,
+                            heif.stride,
+                        )
+                        logger.info(f"normalize_to_webp: opened via pyheif size={image.size} mode={image.mode}")
+                    except Exception as e_pyheif:
+                        logger.exception("normalize_to_webp: failed to open image via PIL, pillow_heif and pyheif fallbacks")
+                        raise e_pyheif
+                else:
+                    logger.exception("normalize_to_webp: failed to open image via PIL and pillow_heif fallbacks (pyheif not installed)")
+                    raise
 
     try:
         image = ImageOps.exif_transpose(image)

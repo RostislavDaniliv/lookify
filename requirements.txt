@@ -32,7 +32,8 @@ numpy==2.3.2
 parso==0.8.5
 pillow==11.3.0
 pillow-avif-plugin==1.5.2
-pillow-heif==0.16.0
+pillow-heif==0.17.0
+pyheif==0.7.2
 python-magic==0.4.27
 prompt_toolkit==3.0.52
 proto-plus==1.26.1

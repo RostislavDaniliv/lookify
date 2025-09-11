@@ -98,8 +98,13 @@ class MultipleImageField(forms.FileField):
         if len(value) > self.max_files:
             raise forms.ValidationError(f"Maximum {self.max_files} files allowed.")
 
-    def clean(self, value):
-        return value
+    def clean(self, data, initial=None):
+        if data in (None, ''):
+            return None
+        files = data if isinstance(data, list) else [data]
+        if len(files) > self.max_files:
+            raise forms.ValidationError(f"Maximum {self.max_files} files allowed.")
+        return files
 
 class UploadForm(forms.Form):
     user_photo = forms.ImageField(required=True, label="User Photo",

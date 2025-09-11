@@ -33,15 +33,25 @@ def normalize_to_webp(uploaded_file, max_px=2048, quality=82):
         image = Image.open(BytesIO(file_bytes))
         logger.info(f"normalize_to_webp: PIL opened format={getattr(image,'format',None)} mode={image.mode} size={image.size}")
     except Exception:
-        # Fallback for HEIC/HEIF when Pillow fails
+        # Fallbacks for HEIC/HEIF when Pillow fails
         try:
-            heif_img = pillow_heif.open_heif(BytesIO(file_bytes))
+            heif_img = pillow_heif.open_heif(BytesIO(file_bytes), convert_hdr_to_8bit=True)
             image = heif_img  # already PIL.Image.Image
-            logger.info(f"normalize_to_webp: opened via pillow_heif size={image.size} mode={image.mode}")
-        except Exception as _e:
-            # Re-raise the original behavior
-            logger.exception("normalize_to_webp: failed to open image via PIL and pillow_heif")
-            raise
+            logger.info(f"normalize_to_webp: opened via pillow_heif/open_heif size={image.size} mode={image.mode}")
+        except Exception as e_open:
+            logger.warning(f"normalize_to_webp: open_heif failed: {e_open}")
+            try:
+                heif_frame = pillow_heif.read_heif(file_bytes, convert_hdr_to_8bit=True)
+                image = Image.frombytes(
+                    heif_frame.mode,
+                    heif_frame.size,
+                    heif_frame.data,
+                    "raw",
+                )
+                logger.info(f"normalize_to_webp: opened via pillow_heif/read_heif size={image.size} mode={image.mode}")
+            except Exception:
+                logger.exception("normalize_to_webp: failed to open image via PIL and pillow_heif fallbacks")
+                raise
 
     try:
         image = ImageOps.exif_transpose(image)

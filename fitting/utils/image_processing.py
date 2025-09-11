@@ -21,6 +21,14 @@ import shutil
 import os
 
 
+def _resolve_executable(candidates):
+    for name_or_path in candidates:
+        path = shutil.which(name_or_path) if os.path.basename(name_or_path) == name_or_path else name_or_path
+        if path and os.path.exists(path):
+            return path
+    return None
+
+
 def _convert_heic_external(file_bytes, logger: logging.Logger):
     """Attempt to convert HEIC to PNG via external tools (heif-convert or ImageMagick).
     Returns a PIL.Image on success, else raises.
@@ -34,18 +42,24 @@ def _convert_heic_external(file_bytes, logger: logging.Logger):
         with open(tmp_in, 'wb') as f:
             f.write(file_bytes)
 
-        heif_convert = shutil.which("heif-convert")
-        magick = shutil.which("magick") or shutil.which("convert")
+        heif_convert = _resolve_executable(["heif-convert", "/usr/bin/heif-convert", "/usr/local/bin/heif-convert"])  # common locations
+        magick = _resolve_executable(["magick", "convert", "/usr/bin/magick", "/usr/local/bin/magick", "/usr/bin/convert", "/usr/local/bin/convert"])  # ImageMagick
 
         if heif_convert:
             cmd = [heif_convert, tmp_in, tmp_out_png]
-            logger.info(f"normalize_to_webp: trying external heif-convert: {' '.join(cmd)}")
-            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            logger.info(f"normalize_to_webp: trying external heif-convert: {cmd}")
+            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if proc.returncode != 0 or not os.path.exists(tmp_out_png):
+                stderr = proc.stderr.decode(errors='ignore')
+                raise RuntimeError(f"heif-convert failed (code={proc.returncode}): {stderr[:4000]}")
         elif magick:
             # ImageMagick path; convert HEIC to PNG
             cmd = [magick, tmp_in, tmp_out_png]
-            logger.info(f"normalize_to_webp: trying external ImageMagick: {' '.join(cmd)}")
-            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            logger.info(f"normalize_to_webp: trying external ImageMagick: {cmd}")
+            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if proc.returncode != 0 or not os.path.exists(tmp_out_png):
+                stderr = proc.stderr.decode(errors='ignore')
+                raise RuntimeError(f"ImageMagick failed (code={proc.returncode}): {stderr[:4000]}")
         else:
             raise RuntimeError("No external HEIC converter found (need heif-convert or ImageMagick)")
 

@@ -17,19 +17,25 @@
                 <div class="relative w-full max-w-sm aspect-square bg-gray-800 rounded-xl overflow-hidden">
                     <img src="{{ user_photo_url }}" alt="Фото користувача" class="w-full h-full object-cover rounded-xl border border-gray-600">
                 </div>
-                <!-- <p class="text-sm text-gray-400 mt-3">{{ user_photo_name }} ({{ user_photo_size }} / {{ user_photo_resolution }})</p> -->
             </div>
 
             <!-- Item Photos Card -->
             <div class="bg-white/5 p-6 rounded-2xl shadow-soft backdrop-blur-md border border-gray-700 flex flex-col items-center justify-center">
                 <h2 class="text-xl font-semibold text-textlight mb-4">Фото речі</h2>
-                {% for item_url in item_photo_urls %}
-                    <div class="relative w-full max-w-sm aspect-square bg-gray-800 rounded-xl overflow-hidden mb-4 last:mb-0">
-                        <img class="item-image w-full h-full object-cover rounded-xl border border-gray-600 cursor-crosshair" src="{{ item_url }}" alt="Фото речі {{ forloop.counter }}">
-                        <canvas class="selection-canvas absolute inset-0 border-2 border-primary rounded-xl pointer-events-none" data-index="{{ forloop.counter0 }}"></canvas>
+
+                {% if combined_items_url %}
+                    <div class="relative w-full max-w-sm aspect-square bg-gray-800 rounded-xl overflow-hidden mb-4">
+                        <img class="item-image w-full h-full object-cover rounded-xl border border-gray-600" src="{{ combined_items_url }}" alt="Колаж речей">
+                        <canvas class="selection-canvas absolute inset-0 border-2 border-primary rounded-xl pointer-events-none" data-index="0"></canvas>
                     </div>
-                    <!-- <p class="text-sm text-gray-400 mt-3">{{ item_photo_name }} ({{ item_photo_size }} / {{ item_photo_resolution }})</p> -->
-                {% endfor %}
+                {% else %}
+                    {% for item_url in item_photo_urls %}
+                        <div class="relative w-full max-w-sm aspect-square bg-gray-800 rounded-xl overflow-hidden mb-4 last:mb-0">
+                            <img class="item-image w-full h-full object-cover rounded-xl border border-gray-600 cursor-crosshair" src="{{ item_url }}" alt="Фото речі {{ forloop.counter }}">
+                            <canvas class="selection-canvas absolute inset-0 border-2 border-primary rounded-xl pointer-events-none" data-index="{{ forloop.counter0 }}"></canvas>
+                        </div>
+                    {% endfor %}
+                {% endif %}
             </div>
         </div>
 
@@ -61,7 +67,7 @@
             </svg>
             <h2 class="text-2xl font-semibold text-textlight mb-4">Немає фотографій для попереднього перегляду</h2>
             <p class="text-gray-400 mb-6">Будь ласка, завантажте ваші фотографії на головній сторінці, щоб продовжити.</p>
-            <a href="{% url 'upload_view' %}" class="inline-block px-8 py-3 bg-gradient-to-r from-primary to-secondary text-white font-bold rounded-xl shadow-lg hover:shadow-neon-primary transition-all duration-300">
+            <a href="{% url 'upload_view' %}" class="inline-block px-8 py-3 bg-gradient-to-r from-primary to-secondary text-white font-bold rounded-xl shadow-lg hover:shadow-neон-primary transition-all duration-300">
                 Повернутись на головну
             </a>
         </div>
@@ -72,7 +78,6 @@
     const itemImages = document.querySelectorAll('.item-image');
     const canvases = document.querySelectorAll('.selection-canvas');
     const selectionMaskInput = document.getElementById('selection-mask');
-    const clearSelectionButton = document.getElementById('clear-selection-button');
 
     // Store drawing state for each canvas
     const drawingStates = [];
@@ -95,12 +100,8 @@
 
     function initializeCanvas(canvas, image, index) {
         setCanvasSize(canvas, image);
-        
-        // Programmatically prevent image dragging and selection
         image.addEventListener('dragstart', (e) => e.preventDefault());
         image.addEventListener('selectstart', (e) => e.preventDefault());
-
-        // Add event listeners for this canvas
         canvas.addEventListener('mousedown', (e) => handleMouseDown(e, index));
         canvas.addEventListener('mousemove', (e) => handleMouseMove(e, index));
         canvas.addEventListener('mouseup', () => handleMouseUp(index));
@@ -135,7 +136,7 @@
     function redrawPath(canvas, index) {
         const ctx = canvas.getContext('2d');
         const state = drawingStates[index];
-        
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         state.strokes.forEach(stroke => {
             if (stroke.length > 1) {
@@ -144,7 +145,7 @@
                 for (let i = 1; i < stroke.length; i++) {
                     ctx.lineTo(stroke[i].x, stroke[i].y);
                 }
-                ctx.strokeStyle = '#7C5CFF'; // primary color
+                ctx.strokeStyle = '#7C5CFF';
                 ctx.lineWidth = 3;
                 ctx.lineJoin = 'round';
                 ctx.lineCap = 'round';
@@ -152,14 +153,14 @@
                 ctx.stroke();
             }
         });
-        
+
         if (state.currentStroke.length > 1) {
             ctx.beginPath();
             ctx.moveTo(state.currentStroke[0].x, state.currentStroke[0].y);
             for (let i = 1; i < state.currentStroke.length; i++) {
                 ctx.lineTo(state.currentStroke[i].x, state.currentStroke[i].y);
             }
-            ctx.strokeStyle = '#7C5CFF'; // primary color
+            ctx.strokeStyle = '#7C5CFF';
             ctx.lineWidth = 3;
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
@@ -169,44 +170,35 @@
     }
 
     function generateMask() {
-        // Find the first canvas with drawings
-        let maskCanvas = null;
-        let maskIndex = 0;
-        
-        for (let i = 0; i < drawingStates.length; i++) {
-            const state = drawingStates[i];
-            if (state.strokes.length > 0 || state.currentStroke.length > 0) {
-                maskCanvas = canvases[i];
-                maskIndex = i;
-                break;
-            }
+        // For combined view, we only have one canvas at index 0
+        const firstCanvas = canvases[0];
+        if (!firstCanvas) {
+            selectionMaskInput.value = '';
+            return;
         }
-
-        if (!maskCanvas) {
+        const index = 0;
+        const image = document.querySelector('.item-image');
+        if (!image) {
             selectionMaskInput.value = '';
             return;
         }
 
-        const state = drawingStates[maskIndex];
-        const image = itemImages[maskIndex];
-
-        // Create a temporary canvas with the natural size of the image
         const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = image.naturalWidth;
-        tempCanvas.height = image.naturalHeight;
+        tempCanvas.width = image.naturalWidth || image.width;
+        tempCanvas.height = image.naturalHeight || image.height;
         const tempCtx = tempCanvas.getContext('2d');
 
-        // Scale the drawing points to the natural image size
-        const scaleX = image.naturalWidth / image.offsetWidth;
-        const scaleY = image.naturalHeight / image.offsetHeight;
+        const scaleX = (image.naturalWidth || image.width) / image.offsetWidth;
+        const scaleY = (image.naturalHeight || image.height) / image.offsetHeight;
 
+        const state = drawingStates[index] || { strokes: [], currentStroke: [] };
         state.strokes.forEach(stroke => {
             if (stroke.length > 1) {
                 tempCtx.beginPath();
                 tempCtx.moveTo(stroke[0].x * scaleX, stroke[0].y * scaleY);
                 for (let i = 1; i < stroke.length; i++) {
                     tempCtx.lineTo(stroke[i].x * scaleX, stroke[i].y * scaleY);
-                }S
+                }
                 tempCtx.strokeStyle = '#FFFFFF';
                 tempCtx.lineWidth = 10;
                 tempCtx.lineJoin = 'round';
@@ -267,17 +259,5 @@
         }
         generateMask();
     }
-
-    clearSelectionButton.addEventListener('click', () => {
-        // Clear all canvases
-        canvases.forEach((canvas, index) => {
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawingStates[index].strokes = [];
-            drawingStates[index].currentStroke = [];
-        });
-        selectionMaskInput.value = '';
-    });
-
 </script>
 {% endblock %}

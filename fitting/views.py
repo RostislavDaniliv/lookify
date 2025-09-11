@@ -34,12 +34,13 @@ def upload_view(request):
             user_file = form.cleaned_data['user_photo']
             item_files = form.cleaned_data['item_photo']
 
-            # Зберігаємо в MEDIA як .webp
+            # Зберігаємо в MEDIA як .jpg (після наших конверсій)
             today_dir = os.path.join(settings.MEDIA_ROOT, 'uploads', str(date.today().year), str(date.today().month))
             os.makedirs(today_dir, exist_ok=True)
 
             def save_memfile(memfile):
-                file_name = f"{uuid.uuid4()}.webp"
+                # Зберігаємо з таким самим розширенням, яке має memfile (тепер .jpg)
+                file_name = f"{uuid.uuid4()}.jpg"
                 full_path = os.path.join(today_dir, file_name)
                 with open(full_path, 'wb') as f:
                     f.write(memfile.read())
@@ -74,9 +75,24 @@ def preview_view(request):
     item_photo_paths = uploaded_data['items'] # Очікуємо список шляхів
     item_photo_urls = [os.path.join(settings.MEDIA_URL, path) for path in item_photo_paths] # Створюємо список URL-адрес
 
+    # Побудова колажу для прев'ю (по бажанню користувача бачити об'єднано)
+    combined_items_url = None
+    try:
+        if item_photo_paths and len(item_photo_paths) > 1:
+            combined_items_path = combine_item_images(item_photo_paths)
+            combined_items_url = os.path.join(settings.MEDIA_URL, combined_items_path)
+            # Збережемо у сесію для можливого повторного використання
+            uploaded_data['combined_items'] = combined_items_path
+            request.session['upload'] = uploaded_data
+            logger.info(f"Preview: combined items prepared at {combined_items_path}")
+    except Exception as e:
+        logger.warning(f"Preview: failed to build combined items: {e}")
+        combined_items_url = None
+
     context = {
         'user_photo_url': user_photo_url,
-        'item_photo_urls': item_photo_urls, # Передаємо список URL-адрес
+        'item_photo_urls': item_photo_urls, # Список URL-адрес (на випадок одиночного файла)
+        'combined_items_url': combined_items_url,
     }
     return render(request, 'preview.html', context)
 

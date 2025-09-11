@@ -20,7 +20,7 @@ class MultipleFileInput(forms.FileInput):
         if attrs is None:
             attrs = {}
         attrs['multiple'] = 'multiple'
-        attrs['accept'] = '.jpg,.jpeg,.png,.webp,.heic,.heif'
+        attrs['accept'] = '.jpg,.jpeg,.png,.webp,.heic,.heif,.avif'
         super().__init__(attrs)
 
 class MultipleImageField(forms.FileField):
@@ -109,9 +109,9 @@ class MultipleImageField(forms.FileField):
 class UploadForm(forms.Form):
     # ВАЖЛИВО: FileField замість ImageField, щоб не валідовувати HEIC через Pillow до нашої конвертації
     user_photo = forms.FileField(required=True, label="User Photo",
-                                  help_text="JPEG, PNG, WebP, HEIC/HEIF. Max. 10MB. Min. 256x256.")
+                                  help_text="JPEG, PNG, WebP, HEIC/HEIF/AVIF. Max. 10MB. Min. 256x256.")
     item_photo = MultipleImageField(required=True, label="Item Photos (up to 3)",
-                                  help_text="JPEG, PNG, WebP, HEIC/HEIF. Max. 10MB each. Min. 128x128.",
+                                  help_text="JPEG, PNG, WebP, HEIC/HEIF/AVIF. Max. 10MB each. Min. 128x128.",
                                   max_files=3)
     prompt_text = forms.CharField(required=False, label="Additional Requests (optional)",
                                   help_text="Describe what you would like to try on, or any other details.",
@@ -124,10 +124,10 @@ class UploadForm(forms.Form):
 
         if user_photo:
             # Перевірка дозволених розширень
-            allowed_exts = {"jpg","jpeg","png","webp","heic","heif"}
+            allowed_exts = {"jpg","jpeg","png","webp","heic","heif","avif"}
             name_lower = user_photo.name.lower()
             if '.' not in name_lower or name_lower.rsplit('.',1)[1] not in allowed_exts:
-                self.add_error('user_photo', "Unsupported file extension. Allowed: jpg, jpeg, png, webp, heic, heif.")
+                self.add_error('user_photo', "Unsupported file extension. Allowed: jpg, jpeg, png, webp, heic, heif, avif.")
                 return cleaned_data
             if user_photo.size > 10 * 1024 * 1024:
                 self.add_error('user_photo', "File too large. Maximum size: 10MB.")
@@ -159,10 +159,10 @@ class UploadForm(forms.Form):
                 try:
                     logger.info(f"Processing item photo {i+1}: {photo.name}")
                     # Перевірка дозволених розширень для айтемів
-                    allowed_exts = {"jpg","jpeg","png","webp","heic","heif"}
+                    allowed_exts = {"jpg","jpeg","png","webp","heic","heif","avif"}
                     name_lower = photo.name.lower()
                     if '.' not in name_lower or name_lower.rsplit('.',1)[1] not in allowed_exts:
-                        self.add_error('item_photo', f"Unsupported file extension for {photo.name}. Allowed: jpg, jpeg, png, webp, heic, heif.")
+                        self.add_error('item_photo', f"Unsupported file extension for {photo.name}. Allowed: jpg, jpeg, png, webp, heic, heif, avif.")
                         continue
 
                     if photo.size > 10 * 1024 * 1024:

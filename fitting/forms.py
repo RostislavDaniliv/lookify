@@ -160,8 +160,6 @@ class UploadForm(forms.Form):
                     processed_file = normalize_to_webp(photo, max_px=2048, quality=82)
                     processed_files.append(processed_file)
                     logger.info(f"Successfully processed item photo {i+1}: {getattr(processed_file, 'name', 'memfile')}\n")
-                    else:
-                        logger.warning(f"Item photo {i+1} processing returned None")
                 except Exception as e:
                     logger.error(f"Error processing item photo {i+1}: {e}")
                     self.add_error('item_photo', f"Error processing item photo {i+1}: {str(e)}")

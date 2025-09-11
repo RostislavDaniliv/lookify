@@ -130,16 +130,28 @@
         submitButton.disabled = !(userPhotoSelected && itemPhotoSelected);
     }
 
+    function renderPlaceholderWithSelection(placeholder, files) {
+        const count = files.length;
+        if (count === 1) {
+            placeholder.innerHTML = `<div class="text-gray-500"><p class="font-medium">Файл обрано: <span class="text-primary">${files[0].name}</span></p><p class="text-sm">Прев’ю недоступне, але файл буде оброблено на сервері.</p></div>`;
+        } else if (count > 1) {
+            const names = Array.from(files).slice(0, 3).map(f => f.name).join(', ');
+            const more = count > 3 ? ` та ще ${count - 3}` : '';
+            placeholder.innerHTML = `<div class="text-gray-500"><p class="font-medium">Обрано ${count} файлів: <span class=\"text-primary\">${names}${more}</span></p><p class="text-sm">Прев’ю недоступне для всіх, але файли будуть оброблені на сервері.</p></div>`;
+        }
+    }
+
     function handleFileSelect(input, preview, placeholder) {
-        const file = input.files && input.files[0] ? input.files[0] : null;
-        if (!file) {
+        const files = input.files || [];
+        const first = files[0] || null;
+        if (!first) {
             preview.src = '#';
             preview.style.display = 'none';
             placeholder.style.display = 'flex';
             updateButtonState();
             return;
         }
-        const type = (file.type || '').toLowerCase();
+        const type = (first.type || '').toLowerCase();
         const canPreview = ['image/png','image/jpeg','image/webp'].includes(type);
 
         if (canPreview) {
@@ -149,28 +161,17 @@
                 preview.style.display = 'block';
                 placeholder.style.display = 'none';
             };
-            reader.readAsDataURL(file);
+            reader.readAsDataURL(first);
         } else {
-            // HEIC/HEIF/AVIF та інші непідтримувані браузером для прев'ю
             preview.style.display = 'none';
             placeholder.style.display = 'flex';
-            placeholder.innerHTML = `<div class="text-gray-500"><p class="font-medium">Файл обрано: <span class="text-primary">${file.name}</span></p><p class="text-sm">Прев’ю недоступне, але файл буде оброблено на сервері.</p></div>`;
+            renderPlaceholderWithSelection(placeholder, files);
         }
         updateButtonState();
     }
 
     userPhotoInput.addEventListener('change', () => handleFileSelect(userPhotoInput, userPhotoPreview, userPhotoPlaceholder));
-    itemPhotoInput.addEventListener('change', () => {
-        if (itemPhotoInput.files.length > 0) {
-            // Display the first selected item image as a preview
-            handleFileSelect(itemPhotoInput, itemPhotoPreview, itemPhotoPlaceholder);
-        } else {
-            itemPhotoPreview.src = '#';
-            itemPhotoPreview.style.display = 'none';
-            itemPhotoPlaceholder.style.display = 'flex';
-        }
-        updateButtonState();
-    });
+    itemPhotoInput.addEventListener('change', () => handleFileSelect(itemPhotoInput, itemPhotoPreview, itemPhotoPlaceholder));
 
     // Initial button state check
     updateButtonState();

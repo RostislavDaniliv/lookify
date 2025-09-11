@@ -131,8 +131,13 @@ class UploadForm(forms.Form):
             if user_photo.size > 10 * 1024 * 1024:
                 self.add_error('user_photo', "File too large. Maximum size: 10MB.")
                 return cleaned_data
-            processed_user = normalize_to_webp(user_photo, max_px=2048, quality=82)
-            cleaned_data['user_photo'] = processed_user
+            try:
+                processed_user = normalize_to_webp(user_photo, max_px=2048, quality=82)
+                cleaned_data['user_photo'] = processed_user
+            except Exception as e:
+                logger.exception(f"Error processing user_photo '{getattr(user_photo,'name',None)}': {e}")
+                self.add_error('user_photo', f"Error processing user photo: {str(e)}")
+                return cleaned_data
 
         # Обробляємо кілька файлів item_photo
         if item_photo:
@@ -166,7 +171,7 @@ class UploadForm(forms.Form):
                     processed_files.append(processed_file)
                     logger.info(f"Successfully processed item photo {i+1}: {getattr(processed_file, 'name', 'memfile')}\n")
                 except Exception as e:
-                    logger.error(f"Error processing item photo {i+1}: {e}")
+                    logger.exception(f"Error processing item photo {i+1} ('{getattr(photo,'name',None)}'): {e}")
                     self.add_error('item_photo', f"Error processing item photo {i+1}: {str(e)}")
             
             cleaned_data['item_photo'] = processed_files

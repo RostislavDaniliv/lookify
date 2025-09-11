@@ -54,6 +54,12 @@ def upload_view(request):
                 'prompt': form.cleaned_data['prompt_text']
             }
             return redirect('preview_view')
+        else:
+            # Log form errors with full details
+            try:
+                logger.error(f"Upload view - form.is_valid()=False, errors: {form.errors.as_json()} \nnon_field_errors: {form.non_field_errors()}")
+            except Exception:
+                logger.exception("Upload view - failed to serialize form errors")
     else:
         form = UploadForm()
     return render(request, 'upload.html', {'form': form})

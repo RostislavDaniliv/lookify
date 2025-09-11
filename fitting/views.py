@@ -9,6 +9,7 @@ from .services.image_utils import build_preview_placeholder, combine_item_images
 import logging
 import base64
 import uuid
+from datetime import date
 from io import BytesIO
 from PIL import Image
 
@@ -30,40 +31,26 @@ def upload_view(request):
         
         form = UploadForm(request.POST, request.FILES)
         if form.is_valid():
-            user_photo_path = form.cleaned_data['user_photo']
-            
-            # Отримуємо всі файли item_photo з request.FILES
-            item_photos = request.FILES.getlist('item_photo')
-            logger.info(f"Form is valid. User photo: {user_photo_path}")
-            logger.info(f"Raw item photos count: {len(item_photos)}")
-            
-            # Обробляємо кожен файл окремо
-            processed_item_paths = []
-            for i, item_photo in enumerate(item_photos):
-                try:
-                    logger.info(f"Processing raw item photo {i+1}: {item_photo.name}")
-                    # Використовуємо той самий метод, що і в формі
-                    result_path = form._validate_and_process_image(item_photo, f"item_photo_{i}", 128, 128)
-                    if result_path:
-                        processed_item_paths.append(result_path)
-                        logger.info(f"Successfully processed raw item photo {i+1}: {result_path}")
-                    else:
-                        logger.warning(f"Raw item photo {i+1} processing returned None")
-                except Exception as e:
-                    logger.error(f"Error processing raw item photo {i+1}: {e}")
-            
-            logger.info(f"Final processed item paths: {processed_item_paths}")
+            user_file = form.cleaned_data['user_photo']
+            item_files = form.cleaned_data['item_photo']
 
-            # Переконуємося, що зберігаємо тільки рядки (шляхи), а не об'єкти файлів
-            if isinstance(user_photo_path, str):
-                user_path = user_photo_path
-            else:
-                logger.error(f"User photo path is not a string: {type(user_photo_path)}")
-                user_path = str(user_photo_path) if user_photo_path else None
+            # Зберігаємо в MEDIA як .webp
+            today_dir = os.path.join(settings.MEDIA_ROOT, 'uploads', str(date.today().year), str(date.today().month))
+            os.makedirs(today_dir, exist_ok=True)
+
+            def save_memfile(memfile):
+                file_name = f"{uuid.uuid4()}.webp"
+                full_path = os.path.join(today_dir, file_name)
+                with open(full_path, 'wb') as f:
+                    f.write(memfile.read())
+                return os.path.relpath(full_path, settings.MEDIA_ROOT)
+
+            user_path = save_memfile(user_file)
+            processed_item_paths = [save_memfile(f) for f in item_files]
 
             request.session['upload'] = {
                 'user': user_path,
-                'items': processed_item_paths, # Зберігаємо оброблені шляхи
+                'items': processed_item_paths,
                 'prompt': form.cleaned_data['prompt_text']
             }
             return redirect('preview_view')
@@ -239,19 +226,21 @@ def hair_upload_view(request):
         logger.info(f"Hair Upload - FILES keys: {list(request.FILES.keys())}")
         form = UploadForm(request.POST, request.FILES)
         if form.is_valid():
-            user_photo_path = form.cleaned_data['user_photo']
+            user_file = form.cleaned_data['user_photo']
+            item_files = form.cleaned_data['item_photo']
 
-            item_photos = request.FILES.getlist('item_photo')
-            processed_item_paths = []
-            for i, item_photo in enumerate(item_photos):
-                try:
-                    result_path = form._validate_and_process_image(item_photo, f"hair_photo_{i}", 128, 128)
-                    if result_path:
-                        processed_item_paths.append(result_path)
-                except Exception as e:
-                    logger.error(f"Error processing hair photo {i+1}: {e}")
+            today_dir = os.path.join(settings.MEDIA_ROOT, 'uploads', str(date.today().year), str(date.today().month))
+            os.makedirs(today_dir, exist_ok=True)
 
-            user_path = user_photo_path if isinstance(user_photo_path, str) else (str(user_photo_path) if user_photo_path else None)
+            def save_memfile(memfile):
+                file_name = f"{uuid.uuid4()}.webp"
+                full_path = os.path.join(today_dir, file_name)
+                with open(full_path, 'wb') as f:
+                    f.write(memfile.read())
+                return os.path.relpath(full_path, settings.MEDIA_ROOT)
+
+            user_path = save_memfile(user_file)
+            processed_item_paths = [save_memfile(f) for f in item_files]
 
             request.session['hair_upload'] = {
                 'user': user_path,

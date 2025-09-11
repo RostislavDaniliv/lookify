@@ -1,6 +1,4 @@
-Django
 python-dotenv
-Pillow
 google-generativeai==0.7.0
 imagehash
 annotated-types==0.7.0
@@ -35,6 +33,7 @@ parso==0.8.5
 pillow==11.3.0
 pillow-avif-plugin==1.5.2
 pillow-heif==0.16.0
+python-magic==0.4.27
 prompt_toolkit==3.0.52
 proto-plus==1.26.1
 protobuf==4.25.8

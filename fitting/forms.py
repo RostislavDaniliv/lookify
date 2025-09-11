@@ -7,6 +7,8 @@ import uuid
 from datetime import date
 import logging
 import pillow_heif
+from django.core.files.uploadedfile import InMemoryUploadedFile
+from .utils.image_processing import normalize_to_webp
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +20,7 @@ class MultipleFileInput(forms.FileInput):
         if attrs is None:
             attrs = {}
         attrs['multiple'] = 'multiple'
+        attrs['accept'] = '.jpg,.jpeg,.png,.webp,.heic,.heif'
         super().__init__(attrs)
 
 class MultipleImageField(forms.FileField):
@@ -95,11 +98,14 @@ class MultipleImageField(forms.FileField):
         if len(value) > self.max_files:
             raise forms.ValidationError(f"Maximum {self.max_files} files allowed.")
 
+    def clean(self, value):
+        return value
+
 class UploadForm(forms.Form):
     user_photo = forms.ImageField(required=True, label="User Photo",
-                                  help_text="JPEG, PNG, WebP, AVIF or HEIC. Max. 8MB. Min. resolution 256x256.")
+                                  help_text="JPEG, PNG, WebP, HEIC/HEIF. Max. 10MB. Min. 256x256.")
     item_photo = MultipleImageField(required=True, label="Item Photos (up to 3)",
-                                  help_text="JPEG, PNG, WebP, AVIF or HEIC. Max. 8MB each. Min. resolution 128x128.",
+                                  help_text="JPEG, PNG, WebP, HEIC/HEIF. Max. 10MB each. Min. 128x128.",
                                   max_files=3)
     prompt_text = forms.CharField(required=False, label="Additional Requests (optional)",
                                   help_text="Describe what you would like to try on, or any other details.",
@@ -111,12 +117,17 @@ class UploadForm(forms.Form):
         item_photo = cleaned_data.get('item_photo')
 
         if user_photo:
-            result_path = self._validate_and_process_image(user_photo, "user_photo", 256, 256)
-            if result_path:
-                cleaned_data['user_photo'] = result_path
-                logger.info(f"User photo saved to: {result_path}")
-            else:
-                logger.error("User photo processing failed")
+            # Перевірка дозволених розширень
+            allowed_exts = {"jpg","jpeg","png","webp","heic","heif"}
+            name_lower = user_photo.name.lower()
+            if '.' not in name_lower or name_lower.rsplit('.',1)[1] not in allowed_exts:
+                self.add_error('user_photo', "Unsupported file extension. Allowed: jpg, jpeg, png, webp, heic, heif.")
+                return cleaned_data
+            if user_photo.size > 10 * 1024 * 1024:
+                self.add_error('user_photo', "File too large. Maximum size: 10MB.")
+                return cleaned_data
+            processed_user = normalize_to_webp(user_photo, max_px=2048, quality=82)
+            cleaned_data['user_photo'] = processed_user
 
         # Обробляємо кілька файлів item_photo
         if item_photo:
@@ -131,127 +142,42 @@ class UploadForm(forms.Form):
                 item_photos = [item_photo]
             
             logger.info(f"Processing {len(item_photos)} item photos")
-            processed_paths = []
+            processed_files = []
             
             for i, photo in enumerate(item_photos):
                 try:
                     logger.info(f"Processing item photo {i+1}: {photo.name}")
-                    result_path = self._validate_and_process_image(photo, f"item_photo_{i}", 128, 128)
-                    if result_path:
-                        processed_paths.append(result_path)
-                        logger.info(f"Successfully processed item photo {i+1}: {result_path}")
+                    # Перевірка дозволених розширень для айтемів
+                    allowed_exts = {"jpg","jpeg","png","webp","heic","heif"}
+                    name_lower = photo.name.lower()
+                    if '.' not in name_lower or name_lower.rsplit('.',1)[1] not in allowed_exts:
+                        self.add_error('item_photo', f"Unsupported file extension for {photo.name}. Allowed: jpg, jpeg, png, webp, heic, heif.")
+                        continue
+
+                    if photo.size > 10 * 1024 * 1024:
+                        self.add_error('item_photo', f"File {photo.name} too large. Max 10MB.")
+                        continue
+                    processed_file = normalize_to_webp(photo, max_px=2048, quality=82)
+                    processed_files.append(processed_file)
+                    logger.info(f"Successfully processed item photo {i+1}: {getattr(processed_file, 'name', 'memfile')}\n")
                     else:
                         logger.warning(f"Item photo {i+1} processing returned None")
                 except Exception as e:
                     logger.error(f"Error processing item photo {i+1}: {e}")
                     self.add_error('item_photo', f"Error processing item photo {i+1}: {str(e)}")
             
-            cleaned_data['item_photo'] = processed_paths
-            logger.info(f"Final processed paths: {processed_paths}")
+            cleaned_data['item_photo'] = processed_files
+            logger.info(f"Final processed files: {[f.name for f in processed_files]}")
 
         return cleaned_data
 
-    def _validate_and_process_image(self, file, field_name, min_width, min_height):
-        max_size = 8 * 1024 * 1024  # 8 MB
-        allowed_mime_types = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/heic', 'image/heif']
+    def clean_user_photo(self):
+        file = self.cleaned_data.get('user_photo')
+        if file and file.size > 10 * 1024 * 1024:
+            raise forms.ValidationError("File too large. Maximum size: 10MB.")
+        return file
 
-        logger.info(f"Validating image: {file.name}, size: {file.size}, type: {file.content_type}")
-
-        if file.size > max_size:
-            self.add_error(field_name, f"File too large. Maximum size: {max_size / (1024 * 1024):.0f}MB.")
-            return None
-
-        if file.content_type not in allowed_mime_types:
-            self.add_error(field_name, "Unsupported file format. Allowed: JPEG, PNG, WebP, AVIF, HEIC.")
-            return None # No sense in processing further if format is incorrect
-
-        try:
-            img = Image.open(file)
-            img.verify()
-            # Повторно відкриваємо зображення після verify(), так як воно закриває файл
-            img = Image.open(file)
-        except Exception:
-            self.add_error(field_name, "File is not a valid image or is corrupted.")
-            return None
-
-        width, height = img.size
-        if width < min_width or height < min_height:
-            self.add_error(field_name, f"Minimum resolution: {min_width}x{min_height}px.")
-            return None
-
-        # Auto-orientation by EXIF
-        try:
-            for orientation in ExifTags.TAGS.keys():
-                if ExifTags.TAGS[orientation] == 'Orientation':
-                    break
-            exif = dict(img._getexif().items())
-
-            if exif[orientation] == 3:
-                img = img.rotate(180, expand=True)
-            elif exif[orientation] == 6:
-                img = img.rotate(270, expand=True)
-            elif exif[orientation] == 8:
-                img = img.rotate(90, expand=True)
-        except (AttributeError, KeyError, IndexError):
-            # This happens if the image has no EXIF data or orientation.
-            pass
-
-        # Downscale if longer side > 3000px (для HEIC файлів використовуємо менший ліміт)
-        max_dimension = 2500 if file.content_type in ['image/heic', 'image/heif'] else 3000
-        if max(img.size) > max_dimension:
-            ratio = max_dimension / max(img.size)
-            new_size = tuple(int(x * ratio) for x in img.size)
-            img = img.resize(new_size, Image.Resampling.LANCZOS)
-            logger.info(f"Resized {file.content_type} image from {img.size} to {new_size}")
-
-        # Remove EXIF/metadata before saving
-        img.info = {}
-
-        # Save the file and return the relative path
-        relative_path = self._save_image(img, file.content_type)
-        logger.info(f"Saved image {field_name} to: {relative_path}")
-        return relative_path
-
-    def _save_image(self, img, content_type):
-        today = date.today()
-        upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads', str(today.year), str(today.month))
-        os.makedirs(upload_dir, exist_ok=True)
-
-        # HEIC/HEIF файли завжди конвертуємо в JPEG для кращої сумісності
-        if content_type in ['image/heic', 'image/heif']:
-            ext = 'jpeg'
-            # Конвертуємо в RGB для JPEG
-            if img.mode != 'RGB':
-                img = img.convert('RGB')
-        else:
-            ext = 'jpeg'
-            if content_type == 'image/png':
-                ext = 'png'
-            elif content_type == 'image/webp':
-                ext = 'webp'
-            elif content_type == 'image/avif':
-                ext = 'avif'
-            
-            # Preserve alpha for PNG/WebP/AVIF
-            if (ext == 'png' or ext == 'webp' or ext == 'avif') and img.mode != 'RGBA':
-                img = img.convert('RGBA')
-
-        file_name = f"{uuid.uuid4()}.{ext}"
-        full_path = os.path.join(upload_dir, file_name)
-
-        # Зберігаємо з оптимізацією якості
-        if ext == 'jpeg':
-            # Для HEIC файлів використовуємо трохи нижчу якість для зменшення розміру
-            quality = 85 if content_type in ['image/heic', 'image/heif'] else 90
-            img.save(full_path, format='JPEG', quality=quality, optimize=True)
-        elif ext == 'avif':
-            img.save(full_path, format='AVIF', quality=90)
-        else:
-            img.save(full_path, format=ext.upper())
-
-        relative_path = os.path.relpath(full_path, settings.MEDIA_ROOT)
-        logger.info(f"Saved file to: {full_path}, relative path: {relative_path}")
-        return relative_path
+    # Старі внутрішні методи збереження/валідації замінено на normalize_to_webp
 
 
 class ProcessForm(forms.Form):

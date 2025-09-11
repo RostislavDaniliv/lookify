@@ -107,7 +107,8 @@ class MultipleImageField(forms.FileField):
         return files
 
 class UploadForm(forms.Form):
-    user_photo = forms.ImageField(required=True, label="User Photo",
+    # ВАЖЛИВО: FileField замість ImageField, щоб не валідовувати HEIC через Pillow до нашої конвертації
+    user_photo = forms.FileField(required=True, label="User Photo",
                                   help_text="JPEG, PNG, WebP, HEIC/HEIF. Max. 10MB. Min. 256x256.")
     item_photo = MultipleImageField(required=True, label="Item Photos (up to 3)",
                                   help_text="JPEG, PNG, WebP, HEIC/HEIF. Max. 10MB each. Min. 128x128.",
@@ -181,7 +182,7 @@ class UploadForm(forms.Form):
 
     def clean_user_photo(self):
         file = self.cleaned_data.get('user_photo')
-        if file and file.size > 10 * 1024 * 1024:
+        if file and hasattr(file, 'size') and file.size > 10 * 1024 * 1024:
             raise forms.ValidationError("File too large. Maximum size: 10MB.")
         return file
 

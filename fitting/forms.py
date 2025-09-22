@@ -133,8 +133,9 @@ class UploadForm(forms.Form):
         self.fields['user_photo'].help_text = f"JPEG, PNG, WebP, AVIF{heic_text}. Max. 8MB. Min. resolution 256x256."
         self.fields['item_photo'].help_text = f"JPEG, PNG, WebP, AVIF{heic_text}. Max. 8MB each. Min. resolution 128x128."
     
-    user_photo = forms.ImageField(required=True, label="User Photo",
-                                  help_text="JPEG, PNG, WebP, AVIF or HEIC. Max. 8MB. Min. resolution 256x256.")
+    user_photo = MultipleImageField(required=True, label="User Photo",
+                                   help_text="JPEG, PNG, WebP, AVIF or HEIC. Max. 8MB. Min. resolution 256x256.",
+                                   max_files=1)
     item_photo = MultipleImageField(required=True, label="Item Photos (up to 3)",
                                   help_text="JPEG, PNG, WebP, AVIF or HEIC. Max. 8MB each. Min. resolution 128x128.",
                                   max_files=3)
@@ -148,7 +149,12 @@ class UploadForm(forms.Form):
         item_photo = cleaned_data.get('item_photo')
 
         if user_photo:
-            result_path = self._validate_and_process_image(user_photo, "user_photo", 256, 256)
+            # user_photo тепер список з одного елементу
+            if isinstance(user_photo, list) and len(user_photo) > 0:
+                result_path = self._validate_and_process_image(user_photo[0], "user_photo", 256, 256)
+            else:
+                result_path = self._validate_and_process_image(user_photo, "user_photo", 256, 256)
+            
             if result_path:
                 cleaned_data['user_photo'] = result_path
                 logger.info(f"User photo saved to: {result_path}")

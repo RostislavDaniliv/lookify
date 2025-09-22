@@ -26,7 +26,7 @@ def upload_view(request):
             files = request.FILES.getlist(key) if hasattr(request.FILES, 'getlist') else [request.FILES[key]]
             logger.info(f"Upload view - {key}: {len(files)} files")
             for i, file in enumerate(files):
-                logger.info(f"Upload view - {key}[{i}]: {file.name}, size: {file.size}")
+                logger.info(f"Upload view - {key}[{i}]: {file.name}, size: {file.size}, content_type: {file.content_type}")
         
         form = UploadForm(request.POST, request.FILES)
         if form.is_valid():
@@ -67,6 +67,11 @@ def upload_view(request):
                 'prompt': form.cleaned_data['prompt_text']
             }
             return redirect('preview_view')
+        else:
+            logger.error(f"Form validation failed: {form.errors}")
+            for field, errors in form.errors.items():
+                for error in errors:
+                    logger.error(f"Form error - {field}: {error}")
     else:
         form = UploadForm()
     return render(request, 'upload.html', {'form': form})

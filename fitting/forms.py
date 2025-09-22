@@ -12,11 +12,36 @@ try:
     from pillow_heif import register_heif_opener
     register_heif_opener()
     HEIC_SUPPORT = True
+    logging.info("HEIC support enabled via pillow-heif")
 except ImportError:
     HEIC_SUPPORT = False
     logging.warning("pillow-heif not installed. HEIC support disabled.")
+except Exception as e:
+    HEIC_SUPPORT = False
+    logging.error(f"Failed to initialize HEIC support: {e}")
 
 logger = logging.getLogger(__name__)
+
+def check_heic_support():
+    """Check and log HEIC support status"""
+    try:
+        from pillow_heif import register_heif_opener
+        register_heif_opener()
+        
+        # Test with a simple HEIC file if possible
+        logger.info("HEIC support check: pillow-heif imported and registered successfully")
+        return True
+    except ImportError as e:
+        logger.error(f"HEIC support check failed - ImportError: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"HEIC support check failed - Exception: {e}")
+        return False
+
+# Log HEIC support status on module load
+logger.info(f"HEIC support status: {HEIC_SUPPORT}")
+if HEIC_SUPPORT:
+    check_heic_support()
 
 class MultipleFileInput(forms.FileInput):
     def __init__(self, attrs=None):
@@ -101,6 +126,13 @@ class MultipleImageField(forms.FileField):
             raise forms.ValidationError(f"Maximum {self.max_files} files allowed.")
 
 class UploadForm(forms.Form):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Динамічно оновлюємо help_text залежно від підтримки HEIC
+        heic_text = ", HEIC" if HEIC_SUPPORT else ""
+        self.fields['user_photo'].help_text = f"JPEG, PNG, WebP, AVIF{heic_text}. Max. 8MB. Min. resolution 256x256."
+        self.fields['item_photo'].help_text = f"JPEG, PNG, WebP, AVIF{heic_text}. Max. 8MB each. Min. resolution 128x128."
+    
     user_photo = forms.ImageField(required=True, label="User Photo",
                                   help_text="JPEG, PNG, WebP, AVIF or HEIC. Max. 8MB. Min. resolution 256x256.")
     item_photo = MultipleImageField(required=True, label="Item Photos (up to 3)",
@@ -163,28 +195,67 @@ class UploadForm(forms.Form):
         # Add HEIC support if available
         if HEIC_SUPPORT:
             allowed_mime_types.extend(['image/heic', 'image/heif'])
+            logger.info("HEIC support is enabled, allowing HEIC/HEIF files")
+        else:
+            logger.warning("HEIC support is disabled")
 
-        logger.info(f"Validating image: {file.name}, size: {file.size}, type: {file.content_type}")
+        # Check file extension for HEIC files
+        file_extension = file.name.lower().split('.')[-1] if '.' in file.name else ''
+        is_heic_file = file_extension in ['heic', 'heif']
+        
+        logger.info(f"Validating image: {file.name}, size: {file.size}, type: {file.content_type}, extension: {file_extension}, is_heic: {is_heic_file}")
 
         if file.size > max_size:
             self.add_error(field_name, f"File too large. Maximum size: {max_size / (1024 * 1024):.0f}MB.")
             return None
 
         if file.content_type not in allowed_mime_types:
-            error_msg = "Unsupported file format. Allowed: JPEG, PNG, WebP, AVIF"
-            if HEIC_SUPPORT:
-                error_msg += ", HEIC"
-            error_msg += "."
-            self.add_error(field_name, error_msg)
-            return None # No sense in processing further if format is incorrect
+            # Special handling for HEIC files
+            if is_heic_file and HEIC_SUPPORT:
+                logger.info(f"HEIC file detected by extension: {file.name}, attempting to process despite MIME type: {file.content_type}")
+                # Continue processing - Pillow with pillow-heif should handle it
+            elif is_heic_file and not HEIC_SUPPORT:
+                self.add_error(field_name, "HEIC files are not supported on this server. Please convert to JPEG or PNG.")
+                return None
+            else:
+                error_msg = "Unsupported file format. Allowed: JPEG, PNG, WebP, AVIF"
+                if HEIC_SUPPORT:
+                    error_msg += ", HEIC"
+                error_msg += "."
+                self.add_error(field_name, error_msg)
+                return None
 
         try:
             img = Image.open(file)
             img.verify()
             # Повторно відкриваємо зображення після verify(), так як воно закриває файл
             img = Image.open(file)
-        except Exception:
-            self.add_error(field_name, "File is not a valid image or is corrupted.")
+            logger.info(f"Successfully opened image: {file.name}, format: {img.format}, mode: {img.mode}")
+        except Exception as e:
+            logger.error(f"Error opening image {file.name}: {str(e)}")
+            
+            # Special handling for HEIC files
+            if is_heic_file:
+                if not HEIC_SUPPORT:
+                    self.add_error(field_name, "HEIC files are not supported on this server. Please convert to JPEG or PNG.")
+                else:
+                    # Try alternative HEIC processing
+                    try:
+                        logger.info(f"Attempting alternative HEIC processing for {file.name}")
+                        # Reset file pointer
+                        file.seek(0)
+                        # Try to open with explicit HEIC support
+                        img = self._try_heic_processing(file)
+                        if img:
+                            logger.info(f"Alternative HEIC processing successful for {file.name}")
+                        else:
+                            raise Exception("Alternative HEIC processing failed")
+                    except Exception as heic_error:
+                        logger.error(f"Alternative HEIC processing failed for {file.name}: {str(heic_error)}")
+                        self.add_error(field_name, f"HEIC file processing failed. Please try converting to JPEG or PNG. Error: {str(e)}")
+                return None
+            else:
+                self.add_error(field_name, f"File is not a valid image or is corrupted: {str(e)}")
             return None
 
         width, height = img.size
@@ -220,11 +291,11 @@ class UploadForm(forms.Form):
         img.info = {}
 
         # Save the file and return the relative path
-        relative_path = self._save_image(img, file.content_type)
+        relative_path = self._save_image(img, file.content_type, file.name)
         logger.info(f"Saved image {field_name} to: {relative_path}")
         return relative_path
 
-    def _save_image(self, img, content_type):
+    def _save_image(self, img, content_type, filename=None):
         today = date.today()
         upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads', str(today.year), str(today.month))
         os.makedirs(upload_dir, exist_ok=True)
@@ -238,6 +309,10 @@ class UploadForm(forms.Form):
             ext = 'avif'
         elif content_type in ['image/heic', 'image/heif']:
             ext = 'jpeg'  # Convert HEIC to JPEG for storage
+            logger.info(f"Converting HEIC file to JPEG for storage")
+        elif filename and filename.lower().endswith(('.heic', '.heif')):
+            ext = 'jpeg'  # Convert HEIC to JPEG for storage
+            logger.info(f"Converting HEIC file to JPEG for storage: {filename}")
         
         # Preserve alpha for PNG/WebP/AVIF
         if (ext == 'png' or ext == 'webp' or ext == 'avif') and img.mode != 'RGBA':
@@ -256,6 +331,26 @@ class UploadForm(forms.Form):
         relative_path = os.path.relpath(full_path, settings.MEDIA_ROOT)
         logger.info(f"Saved file to: {full_path}, relative path: {relative_path}")
         return relative_path
+
+    def _try_heic_processing(self, file):
+        """Alternative method to process HEIC files"""
+        try:
+            if HEIC_SUPPORT:
+                # Try to re-register HEIC opener
+                from pillow_heif import register_heif_opener
+                register_heif_opener()
+                
+                # Try to open the file again
+                img = Image.open(file)
+                img.verify()
+                # Reopen after verify
+                file.seek(0)
+                img = Image.open(file)
+                return img
+            return None
+        except Exception as e:
+            logger.error(f"Alternative HEIC processing failed: {str(e)}")
+            return None
 
 
 class ProcessForm(forms.Form):

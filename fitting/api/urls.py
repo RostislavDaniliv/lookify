@@ -8,5 +8,5 @@ urlpatterns = [
     # Simplified try-on endpoints
     path('clothes/try-on/', views.clothes_try_on, name='api_clothes_try_on'),
     path('hair/try-on/', views.hair_try_on, name='api_hair_try_on'),
-    path('config/google-api-key/', views.GoogleApiKeyView.as_view(), name='api_google_api_key'),
+    path('config/openai-api-key/', views.OpenAIApiKeyView.as_view(), name='open_ai_api_key'),
 ]

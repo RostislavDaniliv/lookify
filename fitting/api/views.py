@@ -1,6 +1,6 @@
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, parser_classes
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -391,6 +391,7 @@ def hair_try_on(request):
     }
 )
 class GoogleApiKeyView(APIView):
+    permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'google_api_key'
 
@@ -420,7 +421,7 @@ class GoogleApiKeyView(APIView):
                 }).data,
                 status=status.HTTP_403_FORBIDDEN
             )
-
+            
         logger.info(
             "GOOGLE_API_KEY issued to authenticated client",
             extra={

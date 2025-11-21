@@ -49,7 +49,7 @@ Lookify is a Django-based web application that enables users to virtually try on
 4. **Set up environment variables**
    Create a `.env` file in the project root:
    ```env
-   GOOGLE_API_KEY=your_gemini_api_key_here
+   OPENAI_API_KEY=your_openai_api_key_here
    USE_GEMINI=True
    GEMINI_MODEL=gemini-2.5-flash-image-preview
    REQUEST_TIMEOUT=300
@@ -99,7 +99,7 @@ lookify/
 
 ### Environment Variables
 
-- `GOOGLE_API_KEY`: Your Google Gemini API key
+- `OPENAI_API_KEY`: Your OpenAI API key
 - `USE_GEMINI`: Enable/disable AI processing (True/False)
 - `GEMINI_MODEL`: Gemini model to use (default: gemini-1.5-flash)
 - `REQUEST_TIMEOUT`: API request timeout in seconds (default: 300)

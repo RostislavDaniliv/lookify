@@ -142,11 +142,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Gemini API Configuration
 # These variables should be set in your .env file
 # Example:
-# GOOGLE_API_KEY="YOUR_GEMINI_API_KEY"
+# OPENAI_API_KEY="YOUR_OPENAI_API_KEY"
 # GEMINI_MODEL="gemini-2.5-flash-image-preview"
 # REQUEST_TIMEOUT=60
 # USE_GEMINI="true"
-GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash-image-preview')
 REQUEST_TIMEOUT = int(os.getenv('REQUEST_TIMEOUT', 30))
 USE_GEMINI = os.getenv('USE_GEMINI', 'false').lower() == 'true' # Add USE_GEMINI flag
@@ -221,7 +221,7 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/hour',
         'user': '1000/hour',
-        'google_api_key': '20/hour'
+        'openai_api_key': '20/hour'
     }
 }
 

@@ -376,10 +376,10 @@ def hair_try_on(request):
 
 
 @extend_schema(
-    operation_id='google_api_key_retrieve',
-    summary='Отримати GOOGLE_API_KEY для iOS клієнта',
+    operation_id='openai_api_key_retrieve',
+    summary='Отримати OPENAI_API_KEY для iOS клієнта',
     description=(
-        'Повертає сконфігурований Google API key лише для авторизованих користувачів '
+        'Повертає сконфігурований OpenAI API key лише для авторизованих користувачів '
         'iOS-додатку. Потрібно передати заголовок `X-Key`'
     ),
     tags=['Config'],
@@ -390,18 +390,18 @@ def hair_try_on(request):
         503: ErrorResponseSerializer,
     }
 )
-class GoogleApiKeyView(APIView):
+class OpenAIApiKeyView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
-    throttle_scope = 'google_api_key'
+    throttle_scope = 'openai_api_key'
 
     def get(self, request):
-        configured_key = settings.GOOGLE_API_KEY
+        configured_key = settings.OPENAI_API_KEY
         if not configured_key:
-            logger.error("GOOGLE_API_KEY is not configured for the environment")
+            logger.error("OPENAI_API_KEY is not configured for the environment")
             return Response(
                 ErrorResponseSerializer({
-                    'detail': 'GOOGLE_API_KEY не налаштовано на сервері.',
+                    'detail': 'OPENAI_API_KEY не налаштовано на сервері.',
                     'code': 'MISSING_CONFIGURATION'
                 }).data,
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
@@ -411,7 +411,7 @@ class GoogleApiKeyView(APIView):
         received_client_id = request.headers.get('X-Key')
         if expected_client_id and received_client_id != expected_client_id:
             logger.warning(
-                "Rejected Google API key request due to invalid client id",
+                "Rejected OpenAI API key request due to invalid client id",
                 extra={'user_id': getattr(request.user, 'id', None)}
             )
             return Response(
@@ -423,7 +423,7 @@ class GoogleApiKeyView(APIView):
             )
             
         logger.info(
-            "GOOGLE_API_KEY issued to authenticated client",
+            "OPENAI_API_KEY issued to authenticated client",
             extra={
                 'user_id': getattr(request.user, 'id', None),
                 'client_id': received_client_id or 'unknown'
@@ -431,7 +431,7 @@ class GoogleApiKeyView(APIView):
         )
 
         return Response({
-            'google_api_key': configured_key
+            'openai_api_key': configured_key
         })
 
 

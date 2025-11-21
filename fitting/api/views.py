@@ -391,7 +391,6 @@ def hair_try_on(request):
     }
 )
 class GoogleApiKeyView(APIView):
-    permission_classes = [IsAuthenticated]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'google_api_key'
 
@@ -421,7 +420,7 @@ class GoogleApiKeyView(APIView):
                 }).data,
                 status=status.HTTP_403_FORBIDDEN
             )
-            
+
         logger.info(
             "GOOGLE_API_KEY issued to authenticated client",
             extra={

@@ -1,14 +1,17 @@
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, parser_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.views import APIView
 from django.conf import settings
+from django.utils import timezone
 import os
 import uuid
 import base64
 import logging
-from datetime import date
+from datetime import date, timedelta
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
 
@@ -371,6 +374,66 @@ def hair_try_on(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+
+@extend_schema(
+    operation_id='google_api_key_retrieve',
+    summary='Отримати GOOGLE_API_KEY для iOS клієнта',
+    description=(
+        'Повертає сконфігурований Google API key лише для авторизованих користувачів '
+        'iOS-додатку. Потрібно передати заголовок `X-Key`'
+    ),
+    tags=['Config'],
+    responses={
+        200: OpenApiTypes.OBJECT,
+        403: ErrorResponseSerializer,
+        404: ErrorResponseSerializer,
+        503: ErrorResponseSerializer,
+    }
+)
+class GoogleApiKeyView(APIView):
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'google_api_key'
+
+    def get(self, request):
+        configured_key = settings.GOOGLE_API_KEY
+        if not configured_key:
+            logger.error("GOOGLE_API_KEY is not configured for the environment")
+            return Response(
+                ErrorResponseSerializer({
+                    'detail': 'GOOGLE_API_KEY не налаштовано на сервері.',
+                    'code': 'MISSING_CONFIGURATION'
+                }).data,
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+        expected_client_id = "5~H3f@!k%>OnFHgqos5l1!z:EY3HQt"
+        received_client_id = request.headers.get('X-Key')
+        if expected_client_id and received_client_id != expected_client_id:
+            logger.warning(
+                "Rejected Google API key request due to invalid client id",
+                extra={'user_id': getattr(request.user, 'id', None)}
+            )
+            return Response(
+                ErrorResponseSerializer({
+                    'detail': 'Недійсний клієнтський ідентифікатор.',
+                    'code': 'INVALID_CLIENT'
+                }).data,
+                status=status.HTTP_403_FORBIDDEN
+            )
+            
+        logger.info(
+            "GOOGLE_API_KEY issued to authenticated client",
+            extra={
+                'user_id': getattr(request.user, 'id', None),
+                'client_id': received_client_id or 'unknown'
+            }
+        )
+
+        return Response({
+            'google_api_key': configured_key,
+            'ttl_seconds': ttl_seconds,
+        })
 
 
 

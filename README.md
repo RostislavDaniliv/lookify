@@ -53,6 +53,9 @@ Lookify is a Django-based web application that enables users to virtually try on
    USE_GEMINI=True
    GEMINI_MODEL=gemini-2.5-flash-image-preview
    REQUEST_TIMEOUT=300
+IOS_CLIENT_ID=lookify-ios
+IOS_CLIENT_SECRET=super_secure_value
+GOOGLE_KEY_TTL_SECONDS=3600
    ```
 
 5. **Run database migrations**
@@ -100,6 +103,26 @@ lookify/
 - `USE_GEMINI`: Enable/disable AI processing (True/False)
 - `GEMINI_MODEL`: Gemini model to use (default: gemini-1.5-flash)
 - `REQUEST_TIMEOUT`: API request timeout in seconds (default: 300)
+- `IOS_CLIENT_ID`: Обовʼязковий `X-Client-Id` заголовок для iOS застосунку
+- `IOS_CLIENT_SECRET`: Додатковий заголовок `X-Client-Secret` (опційний, але рекомендований)
+- `GOOGLE_KEY_TTL_SECONDS`: Час життя ключа, який повертає новий endpoint (секунди)
+
+### Secure Google API Key Endpoint
+
+`GET /api/v1/config/google-api-key/`
+
+- **Аутентифікація**: JWT/Session (`Authorization: Bearer <token>`)
+- **Заголовки**:
+  - `X-Client-Id: <IOS_CLIENT_ID>`
+  - `X-Client-Secret: <IOS_CLIENT_SECRET>` (якщо налаштовано)
+- **Відповідь**:
+  ```json
+  {
+    "google_api_key": "<key>",
+    "ttl_seconds": 3600,
+    "expires_at": "2025-11-20T12:00:00Z"
+  }
+  ```
 
 ### Settings
 

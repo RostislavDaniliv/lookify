@@ -431,8 +431,7 @@ class GoogleApiKeyView(APIView):
         )
 
         return Response({
-            'google_api_key': configured_key,
-            'ttl_seconds': ttl_seconds,
+            'google_api_key': configured_key
         })
 
 

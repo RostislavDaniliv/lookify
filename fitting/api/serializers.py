@@ -36,7 +36,7 @@ class ImageUploadSerializer(serializers.Serializer):
     
     def validate_image(self, file, field_name):
         """Валідація зображення з обробкою та збереженням"""
-        allowed_mime_types = ['image/jpg', 'image/jpeg', 'image/png', 'image/webp', 'image/avif']
+        allowed_mime_types = ['image/mpo', 'image/jpg', 'image/jpeg', 'image/png', 'image/webp', 'image/avif']
         
         # Add HEIC support if available
         if HEIC_SUPPORT:
@@ -53,7 +53,8 @@ class ImageUploadSerializer(serializers.Serializer):
 
         if file.size > self.max_size:
             raise serializers.ValidationError(f"File too large. Maximum size: {self.max_size / (1024 * 1024):.0f}MB.")
-
+        
+        print(file.content_type)
         if file.content_type not in allowed_mime_types:
             # Special handling for HEIC files
             if is_heic_file and HEIC_SUPPORT:

@@ -147,7 +147,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # REQUEST_TIMEOUT=60
 # USE_GEMINI="true"
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash-image-preview')
+GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-3-pro-image-preview')
 REQUEST_TIMEOUT = int(os.getenv('REQUEST_TIMEOUT', 30))
 USE_GEMINI = os.getenv('USE_GEMINI', 'false').lower() == 'true' # Add USE_GEMINI flag
 

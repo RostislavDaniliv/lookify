@@ -36,7 +36,7 @@ class ImageUploadSerializer(serializers.Serializer):
     
     def validate_image(self, file, field_name):
         """Валідація зображення з обробкою та збереженням"""
-        allowed_mime_types = ['image/jpeg', 'image/png', 'image/webp', 'image/avif']
+        allowed_mime_types = ['image/jpg', 'image/jpeg', 'image/png', 'image/webp', 'image/avif']
         
         # Add HEIC support if available
         if HEIC_SUPPORT:

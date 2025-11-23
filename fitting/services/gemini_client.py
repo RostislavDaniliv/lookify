@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 
 class GeminiClient:
     def __init__(self):
-        genai.configure(api_key=settings.OPENAI_API_KEY)
+        genai.configure(api_key=settings.GEMINI_API_KEY)
         self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
-        if not settings.OPENAI_API_KEY and settings.USE_GEMINI:
-            logger.warning("OPENAI_API_KEY is not configured, but USE_GEMINI=True. GeminiClient will not function properly.")
+        if not settings.GEMINI_API_KEY and settings.USE_GEMINI:
+            logger.warning("GEMINI_API_KEY is not configured, but USE_GEMINI=True. GeminiClient will not function properly.")
 
     def try_on_item(self, user_img_path: str, item_img_path: str, prompt: str, mask_img_path: str = None) -> str:
         """

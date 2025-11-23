@@ -146,6 +146,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # GEMINI_MODEL="gemini-2.5-flash-image-preview"
 # REQUEST_TIMEOUT=60
 # USE_GEMINI="true"
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-3-pro-image-preview')
 REQUEST_TIMEOUT = int(os.getenv('REQUEST_TIMEOUT', 30))
